@@ -26,7 +26,6 @@ jobs:
         run: |
           flutter build web \
             --release \
-            --web-renderer auto \
             --tree-shake-icons \
             --base-href /drainage-web/
       
