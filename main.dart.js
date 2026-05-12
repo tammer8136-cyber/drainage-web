@@ -8302,9 +8302,9 @@ _.a=d},
 IH:function IH(a,b,c){var _=this
 _.d=a
 _.e=!1
-_.f=0
+_.f=3
 _.r=5
-_.w=0
+_.w=50
 _.y=_.x=!0
 _.z=!1
 _.Q=b
@@ -8476,9 +8476,9 @@ _.f=f
 _.r=g},
 tQ:function tQ(a){this.a=a},
 Kl:function Kl(a,b){var _=this
-_.d=0
+_.d=3
 _.e=5
-_.f=0
+_.f=50
 _.w=_.r=!0
 _.x=!1
 _.y=a
@@ -8719,7 +8719,7 @@ _.x=i
 _.y=j
 _.z=k
 _.Q=l},
-aVr(a,b,c,d,e,f){var s=e==null?B.hH(A.bQ,t.N,t.J):e,r=d==null?0:d,q=b==null?5:b,p=c==null?0:c
+aVr(a,b,c,d,e,f){var s=e==null?B.hH(A.bQ,t.N,t.J):e,r=d==null?3:d,q=b==null?5:b,p=c==null?50:c
 return new B.a7O(s,r,q,p,f!==!1,a===!0)},
 a7O:function a7O(a,b,c,d,e,f){var _=this
 _.a=a
@@ -31286,11 +31286,11 @@ if(n.al(k)){j=B.d2(n.h(0,k)).split(",")
 f.l(0,l,B.b([B.iK(j[0],null),B.iK(j[1],null)],m))}else{i=A.aLN.h(0,l)
 if(i==null){i=A.bQ.h(0,l)
 i.toString}f.l(0,l,B.eA(i,!0,o))}}p=B.uM(n.h(0,"settings_k_min"))
-if(p==null)p=0
+if(p==null)p=3
 o=B.fh(n.h(0,"settings_delta"))
 if(o==null)o=5
 m=B.uM(n.h(0,"settings_desired_layer"))
-if(m==null)m=0
+if(m==null)m=50
 l=B.eL(n.h(0,"settings_use_h2"))
 i=B.eL(n.h(0,"settings_use_h3"))
 n=B.eL(n.h(0,"settings_compare_all_methods"))
@@ -49602,13 +49602,13 @@ r.b2()
 s=r.a.e
 if(s!=null){s=B.ku(s.h(0,"kMin"))
 if(s==null)s=null
-r.f=s==null?0:s
+r.f=s==null?3:s
 s=B.ku(r.a.e.h(0,"delta"))
 s=s==null?null:A.m.C(s)
 r.r=s==null?5:s
 s=B.ku(r.a.e.h(0,"desiredLayer"))
 if(s==null)s=null
-r.w=s==null?0:s
+r.w=s==null?50:s
 s=B.eL(r.a.e.h(0,"useH2"))
 r.x=s!==!1
 s=B.eL(r.a.e.h(0,"useH3"))
@@ -49778,11 +49778,11 @@ $1(a){return A.aRT},
 $S:259}
 B.auO.prototype={
 $0(){var s="tolerance",r=this.a,q=this.b,p=J.aw(q),o=p.h(q,"kMin")
-r.f=o==null?0:o
+r.f=o==null?3:o
 o=p.h(q,"delta")
 r.r=o==null?5:o
 o=p.h(q,"desiredLayer")
-r.w=o==null?0:o
+r.w=o==null?50:o
 o=p.h(q,"useH2")
 r.x=o==null?!0:o
 o=p.h(q,"useH3")
@@ -50059,13 +50059,13 @@ p.b2()
 s=p.a.d
 if(s!=null){s=B.ku(s.h(0,"kMin"))
 if(s==null)s=null
-p.d=s==null?0:s
+p.d=s==null?3:s
 s=B.ku(p.a.d.h(0,"delta"))
 s=s==null?null:A.m.C(s)
 p.e=s==null?5:s
 s=B.ku(p.a.d.h(0,"desiredLayer"))
 if(s==null)s=null
-p.f=s==null?0:s
+p.f=s==null?50:s
 s=B.eL(p.a.d.h(0,"useH2"))
 p.r=s!==!1
 s=B.eL(p.a.d.h(0,"useH3"))
@@ -50075,9 +50075,9 @@ p.x=s===!0
 s=t.N
 r=t.J
 if(p.a.d.h(0,o)!=null){q=t.z
-p.y=B.hH(t.f.a(p.a.d.h(0,o)).kb(0,new B.awS(),q,q),s,r)}else p.y=B.hH(A.bQ,s,r)}else{p.d=0
+p.y=B.hH(t.f.a(p.a.d.h(0,o)).kb(0,new B.awS(),q,q),s,r)}else p.y=B.hH(A.bQ,s,r)}else{p.d=3
 p.e=5
-p.f=0
+p.f=50
 p.w=p.r=!0
 p.x=!1
 p.y=B.hH(A.bQ,t.N,t.J)}p.akK()},
@@ -50236,9 +50236,9 @@ J.bh(s,1,r)}},
 $S:28}
 B.awE.prototype={
 $0(){var s,r,q,p,o,n,m,l=this.a
-l.d=0
+l.d=3
 l.e=5
-l.f=0
+l.f=50
 l.w=l.r=!0
 l.x=!1
 s=t.z
@@ -50693,9 +50693,9 @@ J.bh(s,1,r)}},
 $S:28}
 B.azg.prototype={
 $0(){var s,r,q,p,o,n,m,l=this.a
-l.d=0
+l.d=3
 l.e=5
-l.f=0
+l.f=50
 l.w=l.r=!0
 l.x=!1
 s=t.z
