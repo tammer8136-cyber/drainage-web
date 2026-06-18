@@ -121,8 +121,8 @@ class DrainageSettings {
     }
     
     // Проверка desiredLayer
-    if (desiredLayer < 20 || desiredLayer > 100) {
-      return 'desiredLayer должен быть в диапазоне [20, 100]';
+    if (desiredLayer < 0 || desiredLayer > 200) {
+      return 'desiredLayer должен быть в диапазоне [0, 200]';
     }
     
     // Проверка допусков

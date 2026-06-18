@@ -62,7 +62,7 @@ class DrainageSolver {
       );
     }
     
-    final bool hasFixedV = T.contains('V');
+    final bool hasFixedV = T.contains('V') || T.contains('VK');
     
     // Генерация P_set
     final List<List<double>> pSet = generatePSet(F, T, activeSettings);

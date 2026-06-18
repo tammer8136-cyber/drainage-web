@@ -38,8 +38,8 @@ class DrainageOptimizer {
           // P гибкий
           sIEff = desiredLayer;
           
-        } else if (TForCalc[i] == 'K') {
-          // K использует -10
+        } else if (TForCalc[i] == 'K' || TForCalc[i] == 'VK' || TForCalc[i] == 'DKK') {
+          // K, VK, DKK — карты, используют ту же логику
           if (sRaw > 70) {
             sIEff = desiredLayer;
           } else if (sRaw == 60) {

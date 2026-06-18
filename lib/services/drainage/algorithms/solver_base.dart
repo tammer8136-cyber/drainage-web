@@ -146,8 +146,58 @@ bool isSolutionValid({
   return true;
 }
 
-/// Генерация сегмента с Branch & Bound
-List<List<double>> generateSegmentBnb({
+/// Генерация сегмента с Branch & Bound — callback-версия с буфером.
+/// Не накапливает все решения в памяти — вызывает [onSolution] для каждого найденного.
+/// Буфер переиспользуется — нет аллокации [...currentP, p] на каждой итерации.
+void generateSegmentBnb({
+  required List<double> F,
+  required List<String> T,
+  required List<double> L,
+  required List<List<double>> pSet,
+  required int startIdx,
+  required int endIdx,
+  required String direction,
+  required DrainageSettings settings,
+  required void Function(List<double> result) onSolution,
+  bool debug = false,
+}) {
+  final int segLen = endIdx - startIdx + 1;
+  final List<double> buffer = List.filled(segLen, 0.0);
+
+  void backtrack(int idx, int depth) {
+    if (idx > endIdx) {
+      onSolution(List<double>.from(buffer));
+      return;
+    }
+
+    for (final double pCurrent in pSet[idx]) {
+      final double sCurrent = F[idx] - pCurrent;
+      final tol = DrainageTypes.tolerance[T[idx]]!;
+
+      // Отсечение 1: слой
+      if (sCurrent < tol[0] || sCurrent > tol[1]) continue;
+
+      // Отсечение 2: уклон с предыдущей точкой
+      if (depth > 0) {
+        final double pPrev = buffer[depth - 1];
+        final double k = direction == 'left'
+            ? (pPrev - pCurrent) / L[idx - 1]
+            : (pCurrent - pPrev) / L[idx - 1];
+        if (k < settings.kMin) continue;
+      }
+
+      buffer[depth] = pCurrent;
+      backtrack(idx + 1, depth + 1);
+    }
+  }
+
+  backtrack(startIdx, 0);
+}
+
+/// Обёртка над generateSegmentBnb для обратной совместимости.
+/// Возвращает все решения списком — использовать только там, где это необходимо
+/// (H0, где количество решений обычно мало). Для H2 использовать напрямую с onSolution.
+List<List<double>> generateSegmentBnbList({
   required List<double> F,
   required List<String> T,
   required List<double> L,
@@ -158,53 +208,13 @@ List<List<double>> generateSegmentBnb({
   required DrainageSettings settings,
   bool debug = false,
 }) {
-  final List<List<double>> results = [];
-  
-  void backtrack(int idx, List<double> currentP) {
-    // Базовый случай: достигли конца сегмента
-    if (idx > endIdx) {
-      results.add(List.from(currentP));
-      return;
-    }
-    
-    // Перебираем все допустимые P для текущей точки
-    for (double pCurrent in pSet[idx]) {
-      final double sCurrent = F[idx] - pCurrent;
-      final tolerance = DrainageTypes.tolerance[T[idx]]!;
-      final int minS = tolerance[0];
-      final int maxS = tolerance[1];
-      
-      // Отсечение 1: проверка слоя
-      if (sCurrent < minS || sCurrent > maxS) {
-        continue;
-      }
-      
-      // Отсечение 2: проверка уклона с предыдущей точкой
-      if (currentP.isNotEmpty) {
-        final double pPrev = currentP.last;
-        double k;
-        
-        if (direction == 'left') {
-          // Левый сегмент: к водоразделу (P убывает)
-          k = (pPrev - pCurrent) / L[idx - 1];
-        } else {
-          // Правый сегмент: от водораздела (P возрастает)
-          k = (pCurrent - pPrev) / L[idx - 1];
-        }
-        
-        if (k < settings.kMin) {
-          if (debug && k < 0) {
-            print('  Counterslope at $idx: k=$k');
-          }
-          continue;
-        }
-      }
-      
-      // Рекурсивно обрабатываем следующую точку
-      backtrack(idx + 1, [...currentP, pCurrent]);
-    }
-  }
-  
-  backtrack(startIdx, []);
+  final results = <List<double>>[];
+  generateSegmentBnb(
+    F: F, T: T, L: L, pSet: pSet,
+    startIdx: startIdx, endIdx: endIdx,
+    direction: direction, settings: settings,
+    onSolution: results.add,
+    debug: debug,
+  );
   return results;
 }

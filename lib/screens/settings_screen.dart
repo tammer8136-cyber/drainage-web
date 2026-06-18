@@ -100,9 +100,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildParameterCard(
             'K_min (минимальный уклон, мм/м)',
             kMin,
-            min: 2.0,
-            max: 5.0,
-            divisions: 30,
+            min: 0.0,
+            max: 10.0,
+            divisions: 100,
             onChanged: (value) => setState(() => kMin = value),
           ),
           
@@ -123,10 +123,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildParameterCard(
             'Желаемый слой (мм)',
             desiredLayer,
-            min: 30.0,
-            max: 210.0,
-            divisions: 180,
-            onChanged: (value) => setState(() => desiredLayer = value),
+            min: 0.0,
+            max: 200.0,
+            divisions: 40,
+            onChanged: (value) => setState(() => desiredLayer = (value / 5).round() * 5.0),
           ),
           
           const SizedBox(height: 16),
@@ -221,6 +221,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildToleranceRow('V', 'Водораздел'),
                     _buildToleranceRow('DK', 'Дождевой колодец'),
                     _buildToleranceRow('K', 'Карта'),
+                    _buildToleranceRow('VK', 'Водораздел карта'),
+                    _buildToleranceRow('DKK', 'Дожд. колодец карта'),
                   ],
                 ],
               ),
@@ -349,6 +351,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   // Строка допуска
   Widget _buildToleranceRow(String type, String description) {
+    // Если тип отсутствует в текущей Map (например, VK/DKK при первом запуске),
+    // добавляем дефолтные значения из DrainageTypes
+    if (!tolerance.containsKey(type)) {
+      tolerance[type] = List<int>.from(
+        DrainageTypes.tolerance[type] ?? [0, 0],
+      );
+    }
     final values = tolerance[type]!;
     
     // Создаём контроллеры если их нет

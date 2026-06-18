@@ -17,7 +17,9 @@ class H0Solver {
     bool debug = false,
   }) {
     final List<Solution> solutions = [];
-    final int vIndex = T.indexOf('V');
+    // Ищем водораздел: V или VK
+    int vIndex = T.indexOf('V');
+    if (vIndex == -1) vIndex = T.indexOf('VK');
     final int N = F.length;
     
     if (vIndex == -1) return solutions;
@@ -25,15 +27,16 @@ class H0Solver {
     // Перебираем все допустимые P для водораздела
     for (double pV in pSet[vIndex]) {
       final double sV = F[vIndex] - pV;
-      final tolerance = DrainageTypes.tolerance['V']!;
+      final vType = T[vIndex];
+      final toleranceV = DrainageTypes.tolerance[vType] ?? DrainageTypes.tolerance['V']!;
       
-      if (sV < tolerance[0] || sV > tolerance[1]) {
+      if (sV < toleranceV[0] || sV > toleranceV[1]) {
         continue;
       }
       
       // Генерация левого сегмента (от 0 до V-1)
       if (vIndex > 0) {
-        final leftSegments = generateSegmentBnb(
+        final leftSegments = generateSegmentBnbList(
           F: F,
           T: T,
           L: L,
@@ -56,7 +59,7 @@ class H0Solver {
           
           // Генерация правого сегмента (от V+1 до N-1)
           if (vIndex < N - 1) {
-            final rightSegments = generateSegmentBnb(
+            final rightSegments = generateSegmentBnbList(
               F: F,
               T: T,
               L: L,
@@ -131,7 +134,7 @@ class H0Solver {
       } else {
         // Водораздел в начале
         if (vIndex < N - 1) {
-          final rightSegments = generateSegmentBnb(
+          final rightSegments = generateSegmentBnbList(
             F: F,
             T: T,
             L: L,
