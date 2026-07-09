@@ -10,7 +10,7 @@ class InputScreen extends StatefulWidget {
   final int? projectId;
   final int? sectionNumber;
   final Map<String, dynamic>? projectSettings;
-  
+
   const InputScreen({
     super.key,
     this.projectId,
@@ -28,10 +28,14 @@ class _InputScreenState extends State<InputScreen> {
     PointData(f: 0, type: 'O', length: 0),
     PointData(f: 0, type: 'V', length: 0),
   ];
-  
+
+  // Контроллеры для F и L — индексированы по позиции точки.
+  // Хранятся здесь, не в _buildPointRow, чтобы не пересоздаваться при прокрутке.
+  final List<TextEditingController> _fControllers = [];
+  final List<TextEditingController> _lControllers = [];
+
   bool isCalculating = false;
-  
-  // Настройки (могут быть из проекта или дефолтные)
+
   double kMin = DrainageTypes.kMin;
   int delta = DrainageTypes.delta;
   double desiredLayer = DrainageTypes.defaultDesiredLayer;
@@ -39,24 +43,20 @@ class _InputScreenState extends State<InputScreen> {
   bool useH3 = true;
   bool compareAllMethods = false;
   Map<String, List<int>> tolerance = Map.from(DrainageTypes.tolerance);
-  
-  // Ключ для принудительного пересоздания формы
-  Key _formKey = UniqueKey();
-  
+
   @override
   void initState() {
     super.initState();
-    
-    // Загружаем настройки проекта если есть
+
     if (widget.projectSettings != null) {
       kMin = (widget.projectSettings!['kMin'] as num?)?.toDouble() ?? DrainageTypes.kMin;
       delta = (widget.projectSettings!['delta'] as num?)?.toInt() ?? DrainageTypes.delta;
-      desiredLayer = (widget.projectSettings!['desiredLayer'] as num?)?.toDouble() ?? DrainageTypes.defaultDesiredLayer;
+      desiredLayer = (widget.projectSettings!['desiredLayer'] as num?)?.toDouble() ??
+          DrainageTypes.defaultDesiredLayer;
       useH2 = widget.projectSettings!['useH2'] as bool? ?? true;
       useH3 = widget.projectSettings!['useH3'] as bool? ?? true;
       compareAllMethods = widget.projectSettings!['compareAllMethods'] as bool? ?? false;
-      
-      // Загружаем допуски если есть
+
       if (widget.projectSettings!['tolerance'] != null) {
         tolerance = Map<String, List<int>>.from(
           (widget.projectSettings!['tolerance'] as Map).map(
@@ -68,19 +68,53 @@ class _InputScreenState extends State<InputScreen> {
         );
       }
     }
+
+    // Инициализируем контроллеры под начальный список точек
+    _syncControllers();
   }
-  
+
+  @override
+  void dispose() {
+    for (final c in _fControllers) {
+      c.dispose();
+    }
+    for (final c in _lControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Синхронизирует количество контроллеров с количеством точек.
+  /// Вызывается при добавлении, удалении и сбросе точек.
+  void _syncControllers() {
+    // Добавляем недостающие контроллеры
+    while (_fControllers.length < points.length) {
+      final i = _fControllers.length;
+      _fControllers.add(TextEditingController(
+        text: points[i].f == 0 ? '' : points[i].f.toString(),
+      ));
+      _lControllers.add(TextEditingController(
+        text: points[i].length == 0 ? '' : points[i].length.toString(),
+      ));
+    }
+
+    // Удаляем лишние контроллеры (если точки удалены)
+    while (_fControllers.length > points.length) {
+      _fControllers.removeLast().dispose();
+      _lControllers.removeLast().dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String title = widget.projectId != null 
+    final String title = widget.projectId != null
         ? 'Участок ${widget.sectionNumber}'
         : 'Расчёт продольного профиля';
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
-          // Кнопка проектов (только если не в режиме добавления участка)
           if (widget.projectId == null)
             IconButton(
               icon: const Icon(Icons.folder),
@@ -91,7 +125,6 @@ class _InputScreenState extends State<InputScreen> {
                 );
               },
             ),
-          // Настройки (можно переопределить настройки проекта)
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
@@ -103,7 +136,8 @@ class _InputScreenState extends State<InputScreen> {
                 setState(() {
                   kMin = settings['kMin'] ?? DrainageTypes.kMin;
                   delta = settings['delta'] ?? DrainageTypes.delta;
-                  desiredLayer = settings['desiredLayer'] ?? DrainageTypes.defaultDesiredLayer;
+                  desiredLayer =
+                      settings['desiredLayer'] ?? DrainageTypes.defaultDesiredLayer;
                   useH2 = settings['useH2'] ?? true;
                   useH3 = settings['useH3'] ?? true;
                   compareAllMethods = settings['compareAllMethods'] ?? false;
@@ -128,8 +162,7 @@ class _InputScreenState extends State<InputScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          
-          // Панель текущих настроек
+
           if (widget.projectSettings != null)
             Container(
               width: double.infinity,
@@ -150,7 +183,7 @@ class _InputScreenState extends State<InputScreen> {
                 ],
               ),
             ),
-          
+
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -166,15 +199,14 @@ class _InputScreenState extends State<InputScreen> {
               ],
             ),
           ),
-          
+
           Expanded(
             child: ListView.builder(
-              key: _formKey,  // Ключ для пересоздания
               itemCount: points.length,
               itemBuilder: (context, index) => _buildPointRow(index),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: SizedBox(
@@ -186,7 +218,7 @@ class _InputScreenState extends State<InputScreen> {
               ),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SizedBox(
@@ -201,7 +233,7 @@ class _InputScreenState extends State<InputScreen> {
               ),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: SizedBox(
@@ -209,7 +241,14 @@ class _InputScreenState extends State<InputScreen> {
               child: ElevatedButton.icon(
                 onPressed: isCalculating ? null : _calculate,
                 icon: isCalculating
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
                     : const Icon(Icons.calculate),
                 label: Text(isCalculating ? 'РАСЧЁТ...' : 'РАССЧИТАТЬ'),
               ),
@@ -219,53 +258,70 @@ class _InputScreenState extends State<InputScreen> {
       ),
     );
   }
-  
+
   Widget _buildPointRow(int index) {
     final point = points[index];
     final isLast = index == points.length - 1;
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            SizedBox(width: 30, child: Text('$index', style: const TextStyle(fontWeight: FontWeight.bold))),
+            SizedBox(
+              width: 30,
+              child: Text('$index', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
             const SizedBox(width: 8),
-            
+
+            // Поле F — контроллер хранится в _fControllers[index]
             Expanded(
               flex: 2,
               child: TextField(
-                decoration: const InputDecoration(hintText: 'F', isDense: true, border: OutlineInputBorder()),
+                controller: _fControllers[index],
+                decoration: const InputDecoration(
+                  hintText: 'F',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => setState(() => point.f = double.tryParse(value) ?? 0),
+                onChanged: (value) => point.f = double.tryParse(value) ?? 0,
               ),
             ),
             const SizedBox(width: 8),
-            
+
             Expanded(
               flex: 2,
               child: DropdownButtonFormField<String>(
-                initialValue: point.type,
+                value: point.type,
                 decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                items: DrainageTypes.validTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                items: DrainageTypes.validTypes
+                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .toList(),
                 onChanged: (value) => setState(() => point.type = value ?? 'O'),
               ),
             ),
             const SizedBox(width: 8),
-            
+
+            // Поле L — контроллер хранится в _lControllers[index]
             if (!isLast)
               Expanded(
                 flex: 2,
                 child: TextField(
-                  decoration: const InputDecoration(hintText: 'L', isDense: true, border: OutlineInputBorder()),
+                  controller: _lControllers[index],
+                  decoration: const InputDecoration(
+                    hintText: 'L',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (value) => setState(() => point.length = double.tryParse(value) ?? 0),
+                  onChanged: (value) => point.length = double.tryParse(value) ?? 0,
                 ),
               )
             else
               const Expanded(flex: 2, child: SizedBox()),
-            
+
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
@@ -278,29 +334,51 @@ class _InputScreenState extends State<InputScreen> {
       ),
     );
   }
-  
-  void _addPoint() => setState(() => points.add(PointData(f: 0, type: 'O', length: 0)));
-  
-  void _removePoint(int index) {
-    if (points.length > 3) setState(() => points.removeAt(index));
+
+  void _addPoint() {
+    setState(() {
+      points.add(PointData(f: 0, type: 'O', length: 0));
+      _syncControllers();
+    });
   }
-  
+
+  void _removePoint(int index) {
+    if (points.length > 3) {
+      setState(() {
+        points.removeAt(index);
+        // Удаляем контроллеры для удалённой точки и пересинхронизируем
+        _fControllers.removeAt(index).dispose();
+        _lControllers.removeAt(index).dispose();
+        // Обновляем текст в оставшихся контроллерах (значения не менялись, только индексы)
+      });
+    }
+  }
+
   void _resetForm() {
     setState(() {
-      // Сброс к начальному состоянию
+      // Диспозим все контроллеры
+      for (final c in _fControllers) {
+        c.dispose();
+      }
+      for (final c in _lControllers) {
+        c.dispose();
+      }
+      _fControllers.clear();
+      _lControllers.clear();
+
       points.clear();
       points.addAll([
         PointData(f: 0, type: 'PR', length: 0),
         PointData(f: 0, type: 'O', length: 0),
         PointData(f: 0, type: 'V', length: 0),
       ]);
-      desiredLayer = 50.0;
+
+      // desiredLayer не сбрасываем — пользователь мог его поменять
       useH2 = true;
-      
-      // Генерируем новый ключ чтобы пересоздать форму
-      _formKey = UniqueKey();
+
+      _syncControllers();
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Форма сброшена'),
@@ -308,17 +386,21 @@ class _InputScreenState extends State<InputScreen> {
       ),
     );
   }
-  
+
   Future<void> _calculate() async {
     setState(() => isCalculating = true);
-    
+
     try {
-      final pointsJson = points.asMap().map((i, p) => MapEntry(i, {
-        'f': p.f,
-        'type': p.type,
-        'length': i < points.length - 1 ? p.length : 0,
-      })).values.toList();
-      
+      final pointsJson = points
+          .asMap()
+          .map((i, p) => MapEntry(i, {
+                'f': p.f,
+                'type': p.type,
+                'length': i < points.length - 1 ? p.length : 0,
+              }))
+          .values
+          .toList();
+
       final resultJson = await calculateDrainageAction(
         jsonEncode(pointsJson),
         useH2,
@@ -329,11 +411,10 @@ class _InputScreenState extends State<InputScreen> {
         compareAllMethods: compareAllMethods,
         tolerance: tolerance,
       );
-      
-      // Если это часть проекта, сохраняем участок перед показом результата
+
       if (widget.projectId != null && widget.sectionNumber != null) {
         await _saveSectionWithResult(resultJson);
-        
+
         if (mounted) {
           Navigator.push(
             context,
@@ -348,7 +429,6 @@ class _InputScreenState extends State<InputScreen> {
           );
         }
       } else {
-        // Обычный расчёт - показываем результат
         if (mounted) {
           Navigator.push(
             context,
@@ -366,35 +446,28 @@ class _InputScreenState extends State<InputScreen> {
       setState(() => isCalculating = false);
     }
   }
-  
-  // Сохранить участок с результатами расчёта
+
   Future<void> _saveSectionWithResult(String resultJson) async {
     try {
-      // Подготавливаем входные данные
       final inputData = {
         'F': points.map((p) => p.f).toList(),
         'T': points.map((p) => p.type).toList(),
         'L': points.map((p) => p.length).toList(),
       };
-      
-      // Получаем репозиторий
+
       final repo = await RepositoryFactory.getInstance();
-      
-      // Проверяем существует ли уже такой участок
+
       final sections = await repo.getSections(widget.projectId!);
-      final existingSection = sections.where(
-        (s) => s['section_number'] == widget.sectionNumber
-      ).toList();
-      
+      final existingSection =
+          sections.where((s) => s['section_number'] == widget.sectionNumber).toList();
+
       if (existingSection.isNotEmpty) {
-        // Обновляем существующий участок
         await repo.updateSection(
           id: existingSection.first['id'],
           inputData: jsonEncode(inputData),
           resultData: resultJson,
         );
       } else {
-        // Создаём новый участок
         await repo.insertSection(
           projectId: widget.projectId!,
           sectionNumber: widget.sectionNumber!,
@@ -403,8 +476,7 @@ class _InputScreenState extends State<InputScreen> {
           resultData: resultJson,
         );
       }
-      
-      // Показываем уведомление
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -415,8 +487,7 @@ class _InputScreenState extends State<InputScreen> {
         );
       }
     } catch (e) {
-      // Логируем ошибку, но не блокируем переход на результат
-      print('Error saving section: $e');
+      debugPrint('Error saving section: $e');
     }
   }
 }
@@ -425,6 +496,6 @@ class PointData {
   double f;
   String type;
   double length;
-  
+
   PointData({required this.f, required this.type, required this.length});
 }
