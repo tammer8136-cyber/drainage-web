@@ -13,9 +13,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double kMin = DrainageTypes.kMin;
   int delta = DrainageTypes.delta;
   double desiredLayer = DrainageTypes.defaultDesiredLayer;
-  bool useH2 = true;
+  bool useH2 = DrainageTypes.defaultUseH2;
   bool useH3 = true;
-  bool compareAllMethods = false;
+  bool useMeters = false;
   
   // Допуски (копия для редактирования)
   Map<String, List<int>> tolerance = Map.from(DrainageTypes.tolerance);
@@ -50,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       desiredLayer = settings['desiredLayer'];
       useH2 = settings['useH2'];
       useH3 = settings['useH3'];
-      compareAllMethods = settings['compareAllMethods'];
+      useMeters = settings['useMeters'] ?? false;
       tolerance = Map<String, List<int>>.from(settings['tolerance']);
       
       // Инициализируем контроллеры
@@ -155,33 +155,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const SizedBox(height: 16),
           
-          // Сравнение всех методов
+          // Ввод отметок в метрах
           Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Сравнение всех методов'),
-                  subtitle: const Text('Находит лучшее решение среди всех алгоритмов'),
-                  value: compareAllMethods,
-                  onChanged: (value) => setState(() => compareAllMethods = value),
-                ),
-                if (compareAllMethods)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.speed, size: 16, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Расчёт может занять больше времени, но результат будет точнее',
-                            style: TextStyle(fontSize: 12, color: Colors.orange),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+            child: SwitchListTile(
+              title: const Text('Ввод отметок в метрах'),
+              subtitle: const Text('Отметки (F) вводятся и показываются в метрах вместо мм — на расчёт не влияет, только формат'),
+              value: useMeters,
+              onChanged: (value) => setState(() => useMeters = value),
             ),
           ),
           
@@ -430,9 +410,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       kMin = DrainageTypes.kMin;
       delta = DrainageTypes.delta;
       desiredLayer = DrainageTypes.defaultDesiredLayer;
-      useH2 = true;
+      useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
-      compareAllMethods = false;
+      useMeters = false;
       
       // Deep copy допусков
       tolerance = Map<String, List<int>>.from(
@@ -477,7 +457,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       desiredLayer: desiredLayer,
       useH2: useH2,
       useH3: useH3,
-      compareAllMethods: compareAllMethods,
+      useMeters: useMeters,
       tolerance: tolerance,
     );
     
@@ -489,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'desiredLayer': desiredLayer,
       'useH2': useH2,
       'useH3': useH3,
-      'compareAllMethods': compareAllMethods,
+      'useMeters': useMeters,
       'tolerance': tolerance,
     });
   }

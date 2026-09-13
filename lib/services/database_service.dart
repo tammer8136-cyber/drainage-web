@@ -17,7 +17,7 @@ class DatabaseService {
     
     return await openDatabase(
       path,
-      version: 3,  // Увеличиваем версию для миграции
+      version: 4,  // Увеличиваем версию для миграции (снимок настроек расчёта)
       onCreate: (db, version) async {
         // Таблица проектов
         await db.execute('''
@@ -39,6 +39,7 @@ class DatabaseService {
             name TEXT,
             input_data TEXT NOT NULL,
             result_data TEXT NOT NULL,
+            settings_snapshot TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
           )
@@ -64,6 +65,16 @@ class DatabaseService {
           
           if (!hasSettings) {
             await db.execute('ALTER TABLE projects ADD COLUMN settings TEXT');
+          }
+        }
+        if (oldVersion < 4) {
+          var result = await db.rawQuery('PRAGMA table_info(project_sections)');
+          bool hasSnapshot = result.any((col) => col['name'] == 'settings_snapshot');
+          
+          if (!hasSnapshot) {
+            await db.execute(
+              'ALTER TABLE project_sections ADD COLUMN settings_snapshot TEXT',
+            );
           }
         }
       },
@@ -139,6 +150,7 @@ class DatabaseService {
     String? name,
     required Map<String, dynamic> inputData,
     required Map<String, dynamic> resultData,
+    Map<String, dynamic>? settingsSnapshot,
   }) async {
     final db = await database;
     return await db.insert('project_sections', {
@@ -147,6 +159,7 @@ class DatabaseService {
       'name': name ?? 'Участок $sectionNumber',
       'input_data': jsonEncode(inputData),
       'result_data': jsonEncode(resultData),
+      'settings_snapshot': settingsSnapshot != null ? jsonEncode(settingsSnapshot) : null,
       'created_at': DateTime.now().toIso8601String(),
     });
   }
@@ -180,13 +193,14 @@ class DatabaseService {
   }
   
   /// Обновить участок
-  Future<int> updateSection(int id, {String? name, Map<String, dynamic>? inputData, Map<String, dynamic>? resultData}) async {
+  Future<int> updateSection(int id, {String? name, Map<String, dynamic>? inputData, Map<String, dynamic>? resultData, Map<String, dynamic>? settingsSnapshot}) async {
     final db = await database;
     
     final Map<String, dynamic> updates = {};
     if (name != null) updates['name'] = name;
     if (inputData != null) updates['input_data'] = jsonEncode(inputData);
     if (resultData != null) updates['result_data'] = jsonEncode(resultData);
+    if (settingsSnapshot != null) updates['settings_snapshot'] = jsonEncode(settingsSnapshot);
     
     if (updates.isEmpty) return 0;
     
@@ -207,11 +221,13 @@ class DatabaseService {
         'section_count': 0,
         'avg_layer': 0.0,
         'total_length': 0.0,
+        'parse_errors': 0,
       };
     }
     
     double weightedSum = 0.0;  // Сумма (средний_слой * длина)
     double totalLength = 0.0;
+    int parseErrors = 0;
     
     for (final section in sections) {
       try {
@@ -229,7 +245,9 @@ class DatabaseService {
         weightedSum += avgLayer * length;
         totalLength += length;
       } catch (e) {
-        print('Ошибка обработки участка: $e');
+        // Не даём одному повреждённому участку молча выпасть из статистики
+        // без следа — считаем и возвращаем количество.
+        parseErrors++;
       }
     }
     
@@ -237,6 +255,7 @@ class DatabaseService {
       'section_count': sections.length,
       'avg_layer': totalLength > 0 ? weightedSum / totalLength : 0.0,  // Взвешенное среднее
       'total_length': totalLength,
+      'parse_errors': parseErrors,
     };
   }
   

@@ -41,7 +41,7 @@ class ExportService {
     final arrows = <String>[];
     for (int i = 0; i < L.length; i++) {
       k.add((P[i] - P[i + 1]).abs() / L[i]);
-      if (vIndex != null) {
+      if (vIndex != null && vIndex >= 0) {
         if (i < vIndex) {
           arrows.add('^');
         } else if (i == vIndex) {
@@ -188,7 +188,7 @@ class ExportService {
     double weightedLayerSum = 0;
 
     for (final section in sections) {
-      final resultJson = section['result_json'] as String? ?? '';
+      final resultJson = section['result_data'] as String? ?? '';
       if (resultJson.isEmpty) continue;
       try {
         final result = jsonDecode(resultJson);
@@ -253,7 +253,7 @@ class ExportService {
               for (int i = 0; i < sections.length; i++) ...[
                 () {
                   final section = sections[i];
-                  final resultJson = section['result_json'] as String? ?? '';
+                  final resultJson = section['result_data'] as String? ?? '';
                   double sectionLength = 0;
                   double avgLayer = 0;
                   String status = '—';

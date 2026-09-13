@@ -100,6 +100,7 @@ class DatabaseRepository implements DataRepository {
     String? name,
     required String inputData,
     required String resultData,
+    String? settingsSnapshot,
   }) async {
     // DatabaseService ожидает Map для inputData и resultData
     Map<String, dynamic> inputMap;
@@ -111,6 +112,15 @@ class DatabaseRepository implements DataRepository {
     } catch (e) {
       throw Exception('Invalid JSON data: $e');
     }
+
+    Map<String, dynamic>? settingsMap;
+    if (settingsSnapshot != null) {
+      try {
+        settingsMap = jsonDecode(settingsSnapshot) as Map<String, dynamic>;
+      } catch (e) {
+        settingsMap = null;
+      }
+    }
     
     return await _db.addSection(
       projectId: projectId,
@@ -118,6 +128,7 @@ class DatabaseRepository implements DataRepository {
       name: name,
       inputData: inputMap,
       resultData: resultMap,
+      settingsSnapshot: settingsMap,
     );
   }
   
@@ -137,10 +148,12 @@ class DatabaseRepository implements DataRepository {
     String? name,
     String? inputData,
     String? resultData,
+    String? settingsSnapshot,
   }) async {
     // DatabaseService ожидает Map для inputData и resultData
     Map<String, dynamic>? inputMap;
     Map<String, dynamic>? resultMap;
+    Map<String, dynamic>? settingsMap;
     
     if (inputData != null) {
       try {
@@ -157,12 +170,21 @@ class DatabaseRepository implements DataRepository {
         resultMap = null;
       }
     }
+
+    if (settingsSnapshot != null) {
+      try {
+        settingsMap = jsonDecode(settingsSnapshot) as Map<String, dynamic>;
+      } catch (e) {
+        settingsMap = null;
+      }
+    }
     
     return await _db.updateSection(
       id,
       name: name,
       inputData: inputMap,
       resultData: resultMap,
+      settingsSnapshot: settingsMap,
     );
   }
   
@@ -262,6 +284,7 @@ class DatabaseRepository implements DataRepository {
     String? name,
     required Map<String, dynamic> inputData,
     required Map<String, dynamic> resultData,
+    Map<String, dynamic>? settingsSnapshot,
   }) async {
     return await _db.addSection(
       projectId: projectId,
@@ -269,6 +292,7 @@ class DatabaseRepository implements DataRepository {
       name: name,
       inputData: inputData,
       resultData: resultData,
+      settingsSnapshot: settingsSnapshot,
     );
   }
 }

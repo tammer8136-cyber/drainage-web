@@ -176,6 +176,7 @@ class StorageRepository implements DataRepository {
     String? name,
     required String inputData,
     required String resultData,
+    String? settingsSnapshot,
   }) async {
     final sections = _loadList(_sectionsKey);
     final id = await _getNextId(_nextSectionIdKey);
@@ -187,6 +188,7 @@ class StorageRepository implements DataRepository {
       'name': name,
       'input_data': inputData,
       'result_data': resultData,
+      'settings_snapshot': settingsSnapshot,
       'created_at': _now(),
     };
     
@@ -218,6 +220,7 @@ class StorageRepository implements DataRepository {
     String? name,
     String? inputData,
     String? resultData,
+    String? settingsSnapshot,
   }) async {
     final sections = _loadList(_sectionsKey);
     final index = sections.indexWhere((s) => s['id'] == id);
@@ -227,6 +230,7 @@ class StorageRepository implements DataRepository {
     if (name != null) sections[index]['name'] = name;
     if (inputData != null) sections[index]['input_data'] = inputData;
     if (resultData != null) sections[index]['result_data'] = resultData;
+    if (settingsSnapshot != null) sections[index]['settings_snapshot'] = settingsSnapshot;
     
     await _saveList(_sectionsKey, sections);
     return 1;
@@ -353,11 +357,13 @@ class StorageRepository implements DataRepository {
         'section_count': 0,
         'avg_layer': 0.0,
         'total_length': 0.0,
+        'parse_errors': 0,
       };
     }
     
     double weightedSum = 0.0;
     double totalLength = 0.0;
+    int parseErrors = 0;
     
     for (final section in sections) {
       try {
@@ -373,7 +379,9 @@ class StorageRepository implements DataRepository {
           totalLength += sectionLength;
         }
       } catch (e) {
-        print('Error calculating stats for section ${section['id']}: $e');
+        // Не даём одному повреждённому участку молча выпасть из статистики
+        // без следа — считаем и возвращаем количество.
+        parseErrors++;
       }
     }
     
@@ -383,6 +391,7 @@ class StorageRepository implements DataRepository {
       'section_count': sections.length,
       'avg_layer': avgLayer,
       'total_length': totalLength,
+      'parse_errors': parseErrors,
     };
   }
   
@@ -416,6 +425,7 @@ class StorageRepository implements DataRepository {
     String? name,
     required Map<String, dynamic> inputData,
     required Map<String, dynamic> resultData,
+    Map<String, dynamic>? settingsSnapshot,
   }) async {
     return await insertSection(
       projectId: projectId,
@@ -423,6 +433,7 @@ class StorageRepository implements DataRepository {
       name: name ?? 'Участок $sectionNumber',
       inputData: jsonEncode(inputData),
       resultData: jsonEncode(resultData),
+      settingsSnapshot: settingsSnapshot != null ? jsonEncode(settingsSnapshot) : null,
     );
   }
 }

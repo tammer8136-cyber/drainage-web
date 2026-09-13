@@ -8,7 +8,7 @@ class SettingsService {
   static const String _keyDesiredLayer = 'settings_desired_layer';
   static const String _keyUseH2 = 'settings_use_h2';
   static const String _keyUseH3 = 'settings_use_h3';
-  static const String _keyCompareAllMethods = 'settings_compare_all_methods';
+  static const String _keyUseMeters = 'settings_use_meters';
   static const String _keyTolerancePrefix = 'settings_tolerance_';
   
   /// Сохранить настройки
@@ -18,7 +18,7 @@ class SettingsService {
     required double desiredLayer,
     required bool useH2,
     required bool useH3,
-    required bool compareAllMethods,
+    required bool useMeters,
     required Map<String, List<int>> tolerance,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -28,7 +28,7 @@ class SettingsService {
     await prefs.setDouble(_keyDesiredLayer, desiredLayer);
     await prefs.setBool(_keyUseH2, useH2);
     await prefs.setBool(_keyUseH3, useH3);
-    await prefs.setBool(_keyCompareAllMethods, compareAllMethods);
+    await prefs.setBool(_keyUseMeters, useMeters);
     
     // Сохраняем допуски
     for (var entry in tolerance.entries) {
@@ -59,9 +59,9 @@ class SettingsService {
       'kMin': prefs.getDouble(_keyKMin) ?? DrainageTypes.kMin,
       'delta': prefs.getInt(_keyDelta) ?? DrainageTypes.delta,
       'desiredLayer': prefs.getDouble(_keyDesiredLayer) ?? DrainageTypes.defaultDesiredLayer,
-      'useH2': prefs.getBool(_keyUseH2) ?? true,
+      'useH2': prefs.getBool(_keyUseH2) ?? DrainageTypes.defaultUseH2,
       'useH3': prefs.getBool(_keyUseH3) ?? true,
-      'compareAllMethods': prefs.getBool(_keyCompareAllMethods) ?? false,
+      'useMeters': prefs.getBool(_keyUseMeters) ?? false,
       'tolerance': tolerance,
     };
   }
@@ -75,7 +75,7 @@ class SettingsService {
     await prefs.remove(_keyDesiredLayer);
     await prefs.remove(_keyUseH2);
     await prefs.remove(_keyUseH3);
-    await prefs.remove(_keyCompareAllMethods);
+    await prefs.remove(_keyUseMeters);
     
     // Удаляем все допуски
     for (var type in DrainageTypes.tolerance.keys) {

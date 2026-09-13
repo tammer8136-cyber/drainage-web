@@ -22,7 +22,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   late double desiredLayer;
   late bool useH2;
   late bool useH3;
-  late bool compareAllMethods;
+  late bool useMeters;
   
   // Допуски (копия для редактирования)
   late Map<String, List<int>> tolerance;
@@ -39,9 +39,9 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       kMin = (widget.currentSettings!['kMin'] as num?)?.toDouble() ?? DrainageTypes.kMin;
       delta = (widget.currentSettings!['delta'] as num?)?.toInt() ?? DrainageTypes.delta;
       desiredLayer = (widget.currentSettings!['desiredLayer'] as num?)?.toDouble() ?? DrainageTypes.defaultDesiredLayer;
-      useH2 = widget.currentSettings!['useH2'] as bool? ?? true;
+      useH2 = widget.currentSettings!['useH2'] as bool? ?? DrainageTypes.defaultUseH2;
       useH3 = widget.currentSettings!['useH3'] as bool? ?? true;
-      compareAllMethods = widget.currentSettings!['compareAllMethods'] as bool? ?? false;
+      useMeters = widget.currentSettings!['useMeters'] as bool? ?? false;
       
       // Загружаем допуски если есть
       if (widget.currentSettings!['tolerance'] != null) {
@@ -61,9 +61,9 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       kMin = DrainageTypes.kMin;
       delta = DrainageTypes.delta;
       desiredLayer = DrainageTypes.defaultDesiredLayer;
-      useH2 = true;
+      useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
-      compareAllMethods = false;
+      useMeters = false;
       tolerance = Map.from(DrainageTypes.tolerance);
     }
     
@@ -188,33 +188,13 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
           
           const SizedBox(height: 16),
           
-          // Сравнение всех методов
+          // Ввод отметок в метрах
           Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Сравнение всех методов'),
-                  subtitle: const Text('Находит лучшее решение среди всех алгоритмов'),
-                  value: compareAllMethods,
-                  onChanged: (value) => setState(() => compareAllMethods = value),
-                ),
-                if (compareAllMethods)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.speed, size: 16, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Расчёт может занять больше времени, но результат будет точнее',
-                            style: TextStyle(fontSize: 12, color: Colors.orange),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+            child: SwitchListTile(
+              title: const Text('Ввод отметок в метрах'),
+              subtitle: const Text('Отметки (F) вводятся и показываются в метрах вместо мм — на расчёт не влияет, только формат'),
+              value: useMeters,
+              onChanged: (value) => setState(() => useMeters = value),
             ),
           ),
           
@@ -461,9 +441,9 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       kMin = DrainageTypes.kMin;
       delta = DrainageTypes.delta;
       desiredLayer = DrainageTypes.defaultDesiredLayer;
-      useH2 = true;
+      useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
-      compareAllMethods = false;
+      useMeters = false;
       
       // Deep copy допусков
       tolerance = Map<String, List<int>>.from(
@@ -508,7 +488,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       desiredLayer: desiredLayer,
       useH2: useH2,
       useH3: useH3,
-      compareAllMethods: compareAllMethods,
+      useMeters: useMeters,
       tolerance: tolerance,
     );
     
@@ -520,7 +500,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       'desiredLayer': desiredLayer,
       'useH2': useH2,
       'useH3': useH3,
-      'compareAllMethods': compareAllMethods,
+      'useMeters': useMeters,
       'tolerance': tolerance,
     });
   }

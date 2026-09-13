@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../repositories/repository_factory.dart';
 import '../repositories/data_repository.dart';
+import '../services/export_service.dart';
 import 'result_screen.dart';
 import 'input_screen.dart';
 import 'project_settings_screen.dart';
@@ -161,6 +162,30 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
+  Future<void> _exportProjectPdf() async {
+    if (_sections.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('В проекте нет участков для экспорта')),
+      );
+      return;
+    }
+    try {
+      await ExportService.exportProjectToPdf(
+        projectName: _project!['name'] as String,
+        sections: _sections,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка экспорта PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -181,6 +206,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       appBar: AppBar(
         title: Text(_project!['name']),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Экспорт проекта в PDF',
+            onPressed: _exportProjectPdf,
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _openProjectSettings,
@@ -229,6 +259,22 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     ),
                   ],
                 ),
+                if ((_stats?['parse_errors'] ?? 0) > 0) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Не удалось прочитать ${_stats!['parse_errors']} '
+                          'уч. — статистика выше по остальным',
+                          style: const TextStyle(fontSize: 11, color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -271,7 +317,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       // Используем средний слой из результата (интегральный метод)
                       avgLayer = (resultData['average_layer'] as num?)?.toDouble() ?? 0.0;
                     } catch (e) {
-                      print('Ошибка парсинга: $e');
+                      // Раньше здесь был только print() — теперь карточка
+                      // всё равно показывается, статус просто останется
+                      // дефолтным, без незаметной подмены данных.
+                      status = 'ошибка чтения';
                     }
                     
                     return Card(

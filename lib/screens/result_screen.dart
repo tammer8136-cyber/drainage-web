@@ -11,6 +11,7 @@ class ResultScreen extends StatefulWidget {
   final int? projectId;
   final int? currentSectionNumber;
   final Map<String, dynamic>? projectSettings;
+  final bool useMeters;
   
   const ResultScreen({
     super.key,
@@ -18,6 +19,7 @@ class ResultScreen extends StatefulWidget {
     this.projectId,
     this.currentSectionNumber,
     this.projectSettings,
+    this.useMeters = false,
   });
 
   @override
@@ -35,6 +37,15 @@ class _ResultScreenState extends State<ResultScreen> {
   
   Future<void> _initRepository() async {
     _repo = await RepositoryFactory.getInstance();
+  }
+
+  /// F/P — отсчёты по рейке, хранятся всегда в мм; переключатель влияет
+  /// только на то, как они показываются (мм целыми, или м с тремя знаками).
+  String _fmtElevation(double mm) {
+    if (widget.useMeters) {
+      return (mm / 1000).toStringAsFixed(3);
+    }
+    return mm.toStringAsFixed(0);
   }
   
   @override
@@ -250,7 +261,7 @@ class _ResultScreenState extends State<ResultScreen> {
       // Больше P = точка НИЖЕ физически
       String arrow;
       
-      if (vIndex != null) {
+      if (vIndex != null && vIndex >= 0) {
         // ЕСТЬ ВОДОРАЗДЕЛ (H0, H2)
         // До водораздела: P уменьшается, точка поднимается → ↑
         // После водораздела: P увеличивается, точка опускается → ↓
@@ -305,15 +316,15 @@ class _ResultScreenState extends State<ResultScreen> {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 headingRowColor: WidgetStateProperty.all(Colors.green.shade100),
-                columns: const [
-                  DataColumn(label: Text('№', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('F_вх', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Тип', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('S_i', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('P_i', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('L_i', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('k_i', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Стрелка', style: TextStyle(fontWeight: FontWeight.bold))),
+                columns: [
+                  const DataColumn(label: Text('№', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('F_вх${widget.useMeters ? ", м" : ""}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const DataColumn(label: Text('Тип', style: TextStyle(fontWeight: FontWeight.bold))),
+                  const DataColumn(label: Text('S_i', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('P_i${widget.useMeters ? ", м" : ""}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const DataColumn(label: Text('L_i', style: TextStyle(fontWeight: FontWeight.bold))),
+                  const DataColumn(label: Text('k_i', style: TextStyle(fontWeight: FontWeight.bold))),
+                  const DataColumn(label: Text('Стрелка', style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 rows: List.generate(F.length, (i) {
                   final bool isWatershed = i == vIndex;
@@ -327,10 +338,10 @@ class _ResultScreenState extends State<ResultScreen> {
                     ),
                     cells: [
                       DataCell(Text('$i')),
-                      DataCell(Text(F[i].toStringAsFixed(0))), // БЕЗ дробной части
+                      DataCell(Text(_fmtElevation(F[i]))),
                       DataCell(Text(T[i])),
                       DataCell(Text(S[i].toStringAsFixed(0))), // БЕЗ дробной части
-                      DataCell(Text(P[i].toStringAsFixed(1))), // 1 знак
+                      DataCell(Text(_fmtElevation(P[i]))),
                       DataCell(Text(i < L.length ? L[i].toStringAsFixed(1) : '—')),
                       
                       // k без стрелки

@@ -43,6 +43,7 @@ abstract class DataRepository {
     String? name,
     required String inputData,
     required String resultData,
+    String? settingsSnapshot,
   });
   
   /// Получить все участки проекта
@@ -57,6 +58,7 @@ abstract class DataRepository {
     String? name,
     String? inputData,
     String? resultData,
+    String? settingsSnapshot,
   });
   
   /// Удалить участок
@@ -120,5 +122,6 @@ abstract class DataRepository {
     String? name,
     required Map<String, dynamic> inputData,
     required Map<String, dynamic> resultData,
+    Map<String, dynamic>? settingsSnapshot,
   });
 }
