@@ -22,6 +22,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   late double desiredLayer;
   late bool useH2;
   late bool useH3;
+  late bool compareAllMethods;
   late bool useMeters;
   
   // Допуски (копия для редактирования)
@@ -41,6 +42,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       desiredLayer = (widget.currentSettings!['desiredLayer'] as num?)?.toDouble() ?? DrainageTypes.defaultDesiredLayer;
       useH2 = widget.currentSettings!['useH2'] as bool? ?? DrainageTypes.defaultUseH2;
       useH3 = widget.currentSettings!['useH3'] as bool? ?? true;
+      compareAllMethods = widget.currentSettings!['compareAllMethods'] as bool? ?? false;
       useMeters = widget.currentSettings!['useMeters'] as bool? ?? false;
       
       // Загружаем допуски если есть
@@ -63,6 +65,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       desiredLayer = DrainageTypes.defaultDesiredLayer;
       useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
+      compareAllMethods = false;
       useMeters = false;
       tolerance = Map.from(DrainageTypes.tolerance);
     }
@@ -170,7 +173,28 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
               title: const Text('Использовать плавающий водораздел (H2)'),
               subtitle: const Text('Если не найдено решений с фиксированным V, попробовать виртуальный водораздел'),
               value: useH2,
-              onChanged: (value) => setState(() => useH2 = value),
+              onChanged: (value) => setState(() {
+                useH2 = value;
+                if (!useH2) compareAllMethods = false;
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Честное сравнение методов — требует useH2, иначе сравнивать не с чем
+          Card(
+            child: SwitchListTile(
+              title: const Text('Сравнивать методы честно'),
+              subtitle: Text(
+                useH2
+                    ? 'Прогнать оба применимых алгоритма (H0/H2 или H2/H3) и выбрать лучший по итоговому баллу'
+                    : 'Сначала включите плавающий водораздел (H2) выше — сравнивать не с чем',
+              ),
+              value: compareAllMethods,
+              onChanged: useH2
+                  ? (value) => setState(() => compareAllMethods = value)
+                  : null,
             ),
           ),
           
@@ -443,6 +467,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       desiredLayer = DrainageTypes.defaultDesiredLayer;
       useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
+      compareAllMethods = false;
       useMeters = false;
       
       // Deep copy допусков
@@ -488,6 +513,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       desiredLayer: desiredLayer,
       useH2: useH2,
       useH3: useH3,
+      compareAllMethods: compareAllMethods,
       useMeters: useMeters,
       tolerance: tolerance,
     );
@@ -500,6 +526,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       'desiredLayer': desiredLayer,
       'useH2': useH2,
       'useH3': useH3,
+      'compareAllMethods': compareAllMethods,
       'useMeters': useMeters,
       'tolerance': tolerance,
     });

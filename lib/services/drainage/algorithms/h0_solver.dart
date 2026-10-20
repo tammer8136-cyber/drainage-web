@@ -28,7 +28,11 @@ class H0Solver {
     for (double pV in pSet[vIndex]) {
       final double sV = F[vIndex] - pV;
       final vType = T[vIndex];
-      final toleranceV = DrainageTypes.tolerance[vType] ?? DrainageTypes.tolerance['V']!;
+      // Допуск из НАСТРОЕК, а не из встроенной константы — иначе слой
+      // на водоразделе упирается в дефолт независимо от настроек проекта.
+      final toleranceV = settings.tolerance[vType] ??
+          settings.tolerance['V'] ??
+          DrainageTypes.tolerance['V']!;
       
       if (sV < toleranceV[0] || sV > toleranceV[1]) {
         continue;

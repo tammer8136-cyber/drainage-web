@@ -17,7 +17,7 @@ class DatabaseService {
     
     return await openDatabase(
       path,
-      version: 4,  // Увеличиваем версию для миграции (снимок настроек расчёта)
+      version: 5,  // v4 — снимок настроек участка; v5 — тип проекта
       onCreate: (db, version) async {
         // Таблица проектов
         await db.execute('''
@@ -26,7 +26,8 @@ class DatabaseService {
             name TEXT NOT NULL,
             created_at TEXT NOT NULL,
             notes TEXT,
-            settings TEXT
+            settings TEXT,
+            kind TEXT NOT NULL DEFAULT 'drainage'
           )
         ''');
         
@@ -77,6 +78,16 @@ class DatabaseService {
             );
           }
         }
+        if (oldVersion < 5) {
+          // Тип проекта: 'drainage' | 'milling'. Существующие — дренажные.
+          var result = await db.rawQuery('PRAGMA table_info(projects)');
+          bool hasKind = result.any((col) => col['name'] == 'kind');
+          if (!hasKind) {
+            await db.execute(
+              "ALTER TABLE projects ADD COLUMN kind TEXT NOT NULL DEFAULT 'drainage'",
+            );
+          }
+        }
       },
     );
   }
@@ -86,13 +97,14 @@ class DatabaseService {
   // ============================================================================
   
   /// Создать новый проект
-  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings}) async {
+  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings, String kind = 'drainage'}) async {
     final db = await database;
     return await db.insert('projects', {
       'name': name,
       'created_at': DateTime.now().toIso8601String(),
       'notes': notes,
       'settings': settings != null ? jsonEncode(settings) : null,
+      'kind': kind,
     });
   }
   

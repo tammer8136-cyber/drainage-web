@@ -18,6 +18,11 @@ class DrainageSettings {
   
   /// Использовать H3 алгоритм (прямой уклон)
   bool useH3;
+
+  /// Честное сравнение методов (H0 vs H2, или H2 vs H3) вместо цепочки
+  /// с ранним выходом на первом успешном алгоритме. Требует useH2=true
+  /// в UI (см. settings_screen.dart) — тумблер там неактивен без него.
+  bool compareAllMethods;
   
   DrainageSettings({
     Map<String, List<int>>? tolerance,
@@ -25,11 +30,13 @@ class DrainageSettings {
     int? delta,
     double? desiredLayer,
     bool? useH3,
+    bool? compareAllMethods,
   })  : tolerance = tolerance ?? Map.from(DrainageTypes.tolerance),
         kMin = kMin ?? DrainageTypes.kMin,
         delta = delta ?? DrainageTypes.delta,
         desiredLayer = desiredLayer ?? DrainageTypes.defaultDesiredLayer,
-        useH3 = useH3 ?? true;
+        useH3 = useH3 ?? true,
+        compareAllMethods = compareAllMethods ?? false;
   
   /// Создание настроек по умолчанию
   factory DrainageSettings.defaults() {
@@ -60,6 +67,7 @@ class DrainageSettings {
           ? (json['desired_layer'] as num).toDouble() 
           : null,
       useH3: json['use_h3'] as bool?,
+      compareAllMethods: json['compare_all_methods'] as bool?,
     );
   }
   
@@ -70,6 +78,7 @@ class DrainageSettings {
     'delta': delta,
     'desired_layer': desiredLayer,
     'use_h3': useH3,
+    'compare_all_methods': compareAllMethods,
   };
   
   /// Копирование с изменениями
@@ -79,6 +88,7 @@ class DrainageSettings {
     int? delta,
     double? desiredLayer,
     bool? useH3,
+    bool? compareAllMethods,
   }) {
     return DrainageSettings(
       tolerance: tolerance ?? Map.from(this.tolerance),
@@ -86,6 +96,7 @@ class DrainageSettings {
       delta: delta ?? this.delta,
       desiredLayer: desiredLayer ?? this.desiredLayer,
       useH3: useH3 ?? this.useH3,
+      compareAllMethods: compareAllMethods ?? this.compareAllMethods,
     );
   }
   
@@ -96,6 +107,7 @@ class DrainageSettings {
     delta = DrainageTypes.delta;
     desiredLayer = DrainageTypes.defaultDesiredLayer;
     useH3 = true;
+    compareAllMethods = false;
   }
   
   /// Валидация настроек

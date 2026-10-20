@@ -96,16 +96,19 @@ class StorageRepository implements DataRepository {
     required String name,
     String? notes,
     String? settings,
+    String kind = 'drainage',
   }) async {
     final projects = _loadList(_projectsKey);
     final id = await _getNextId(_nextProjectIdKey);
     
+    // Старые проекты без поля kind читаются как дренажные (null != 'milling').
     final project = {
       'id': id,
       'name': name,
       'created_at': _now(),
       'notes': notes,
       'settings': settings,
+      'kind': kind,
     };
     
     projects.add(project);
@@ -405,12 +408,18 @@ class StorageRepository implements DataRepository {
   }
   
   @override
-  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings}) async {
+  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings, String kind = 'drainage'}) async {
     return await insertProject(
       name: name,
       notes: notes,
       settings: settings != null ? jsonEncode(settings) : null,
+      kind: kind,
     );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getMillingProjectStats(int projectId) async {
+    return millingStatsFromSections(await getSections(projectId));
   }
   
   @override

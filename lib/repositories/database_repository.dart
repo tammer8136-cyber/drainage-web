@@ -30,6 +30,7 @@ class DatabaseRepository implements DataRepository {
     required String name,
     String? notes,
     String? settings,
+    String kind = 'drainage',
   }) async {
     // DatabaseService ожидает Map для settings
     Map<String, dynamic>? settingsMap;
@@ -45,6 +46,7 @@ class DatabaseRepository implements DataRepository {
       name,
       notes: notes,
       settings: settingsMap,
+      kind: kind,
     );
   }
   
@@ -268,8 +270,13 @@ class DatabaseRepository implements DataRepository {
   }
   
   @override
-  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings}) async {
-    return await _db.createProject(name, notes: notes, settings: settings);
+  Future<int> createProject(String name, {String? notes, Map<String, dynamic>? settings, String kind = 'drainage'}) async {
+    return await _db.createProject(name, notes: notes, settings: settings, kind: kind);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getMillingProjectStats(int projectId) async {
+    return millingStatsFromSections(await _db.getProjectSections(projectId));
   }
   
   @override

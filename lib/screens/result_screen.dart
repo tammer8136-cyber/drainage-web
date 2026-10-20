@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:drainage_app/services/export_service.dart';
-import '../repositories/repository_factory.dart';
-import '../repositories/data_repository.dart';
 import 'input_screen.dart';
 import 'dart:convert';
 
@@ -12,6 +10,9 @@ class ResultScreen extends StatefulWidget {
   final int? currentSectionNumber;
   final Map<String, dynamic>? projectSettings;
   final bool useMeters;
+  final String elevationMode; // 'rod' | 'absolute'
+  final String giMode; // 'auto' | 'manual' — только если elevationMode == 'absolute'
+  final double? gi; // горизонт, мм
   
   const ResultScreen({
     super.key,
@@ -20,6 +21,9 @@ class ResultScreen extends StatefulWidget {
     this.currentSectionNumber,
     this.projectSettings,
     this.useMeters = false,
+    this.elevationMode = 'rod',
+    this.giMode = 'auto',
+    this.gi,
   });
 
   @override
@@ -27,21 +31,24 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
-  DataRepository? _repo;
-  
-  @override
-  void initState() {
-    super.initState();
-    _initRepository();
-  }
-  
-  Future<void> _initRepository() async {
-    _repo = await RepositoryFactory.getInstance();
-  }
 
-  /// F/P — отсчёты по рейке, хранятся всегда в мм; переключатель влияет
-  /// только на то, как они показываются (мм целыми, или м с тремя знаками).
+  // Только для elevationMode=='absolute' && giMode=='manual' — переключатель
+  // "по рейке" / "абсолютная" на экране результата. В auto-режиме этот
+  // тумблер не нужен — там показывается только абсолютная отметка.
+  bool _showAbsolute = true;
+
+  bool get _isAbsoluteMode => widget.elevationMode == 'absolute' && widget.gi != null;
+  bool get _showAbsoluteNow => _isAbsoluteMode && (widget.giMode == 'auto' || _showAbsolute);
+
+  /// F/P — отсчёты по рейке, хранятся всегда в мм. В обычном режиме
+  /// переключатель useMeters влияет только на формат (мм целыми, или м с
+  /// тремя знаками). В режиме абсолютных отметок — конвертируем через ГИ
+  /// (auto: всегда так; manual: только если включён тумблер на экране).
   String _fmtElevation(double mm) {
+    if (_showAbsoluteNow) {
+      final absoluteMm = widget.gi! - mm;
+      return (absoluteMm / 1000).toStringAsFixed(3);
+    }
     if (widget.useMeters) {
       return (mm / 1000).toStringAsFixed(3);
     }
@@ -57,10 +64,19 @@ class _ResultScreenState extends State<ResultScreen> {
       appBar: AppBar(
         title: const Text('Результат'),
         actions: [
+          // Переключатель "по рейке" / "абсолютная" — только когда горизонт
+          // задан вручную (в auto-режиме показывается только абсолютная,
+          // переключать нечего).
+          if (widget.elevationMode == 'absolute' && widget.giMode == 'manual' && widget.gi != null)
+            IconButton(
+              icon: Icon(_showAbsolute ? Icons.straighten : Icons.height),
+              tooltip: _showAbsolute ? 'Показать по рейке' : 'Показать абсолютную',
+              onPressed: () => setState(() => _showAbsolute = !_showAbsolute),
+            ),
+          // Кнопка "На главную" — возврат к первому экрану
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () {
-              // Возвращаемся на главный экран (список проектов)
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
             tooltip: 'На главную',
@@ -83,24 +99,21 @@ class _ResultScreenState extends State<ResultScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Статус
               _buildStatusCard(result),
               const SizedBox(height: 16),
               
-              // Метрики (ТЕПЕРЬ СО ШТОРКОЙ)
               if (isSolvable) _buildMetricsExpansionTile(result),
               const SizedBox(height: 16),
               
-              // Таблица с прокруткой
               if (isSolvable) _buildScrollableTable(result),
               
-              // КНОПКА: Следующий участок (только если в режиме проекта)
+              // Кнопка следующего участка (только в режиме проекта)
               if (isSolvable && widget.projectId != null) ...[
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _addNextSection(context, result),
+                    onPressed: () => _addNextSection(context),
                     icon: const Icon(Icons.add_road),
                     label: const Text('СЛЕДУЮЩИЙ УЧАСТОК'),
                     style: ElevatedButton.styleFrom(
@@ -116,18 +129,15 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
   
-  // Функция добавления следующего участка
-  Future<void> _addNextSection(BuildContext context, Map<String, dynamic> result) async {
+  /// Переход к следующему участку.
+  /// Участок уже сохранён в InputScreen при расчёте, здесь только навигация.
+  Future<void> _addNextSection(BuildContext context) async {
     if (widget.projectId == null || widget.currentSectionNumber == null) return;
     
     final nextSectionNumber = widget.currentSectionNumber! + 1;
     
-    // Участок уже сохранён в InputScreen при расчёте
-    // Просто переходим на следующий участок
-    
     if (!mounted) return;
     
-    // Переходим на InputScreen для следующего участка
     await Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -140,7 +150,6 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
   
-  // Карточка статуса
   Widget _buildStatusCard(Map<String, dynamic> result) {
     final bool isSuccess = result['status'] == 'РЕШАЕМО';
     
@@ -182,20 +191,15 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
   
-  // Шторка с метриками (ExpansionTile)
   Widget _buildMetricsExpansionTile(Map<String, dynamic> result) {
-    // Используем средний слой из результата расчёта (интегральный метод)
     final double avgS = (result['average_layer'] as num?)?.toDouble() ?? 0.0;
     
     return Card(
       child: ExpansionTile(
-        initiallyExpanded: false,  // Свёрнуто по умолчанию
+        initiallyExpanded: false,
         title: const Text(
           'МЕТРИКИ',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         children: [
           Padding(
@@ -220,23 +224,13 @@ class _ResultScreenState extends State<ResultScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '$label:',
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('$label:', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
   
-  // Таблица с горизонтальной прокруткой
   Widget _buildScrollableTable(Map<String, dynamic> result) {
     final List<double> F = (result['F'] as List?)?.map((e) => (e as num).toDouble()).toList() ?? [];
     final List<String> T = (result['T'] as List?)?.map((e) => e as String).toList() ?? [];
@@ -244,56 +238,36 @@ class _ResultScreenState extends State<ResultScreen> {
     final List<double> P = (result['solution'] as List?)?.map((e) => (e as num).toDouble()).toList() ?? [];
     final int? vIndex = result['v_index'] as int?;
     
-    // Расчёт S
     final List<double> S = [];
     for (int i = 0; i < F.length; i++) {
       S.add(F[i] - P[i]);
     }
     
-    // Расчёт k и стрелок (как в Python версии)
     final List<Map<String, dynamic>> slopes = [];
     for (int i = 0; i < L.length; i++) {
-      // k_i = abs(P[i] - P[i+1]) / L[i]
       double k = (P[i] - P[i + 1]).abs() / L[i];
-      
-      // Стрелка для нивелирной рейки:
-      // Меньше P = точка ВЫШЕ физически
-      // Больше P = точка НИЖЕ физически
       String arrow;
       
       if (vIndex != null && vIndex >= 0) {
-        // ЕСТЬ ВОДОРАЗДЕЛ (H0, H2)
-        // До водораздела: P уменьшается, точка поднимается → ↑
-        // После водораздела: P увеличивается, точка опускается → ↓
         if (i < vIndex) {
-          arrow = '↑';  // До водораздела - подъём профиля
+          arrow = '↑';
         } else if (i == vIndex) {
-          arrow = '↑↓'; // На водоразделе - вершина
+          arrow = '↑↓';
         } else {
-          arrow = '↓';  // После водораздела - спуск профиля
+          arrow = '↓';
         }
       } else {
-        // НЕТ ВОДОРАЗДЕЛА (H3)
-        // Направление зависит от изменения P
         double pDiff = P[i] - P[i + 1];
-        
         if (pDiff.abs() < 0.001) {
-          arrow = '—';  // Горизонт
+          arrow = '—';
         } else if (pDiff > 0) {
-          // P уменьшается: 1000→960
-          // Точка физически ПОДНИМАЕТСЯ
           arrow = '↑';
         } else {
-          // P увеличивается: 930→1005
-          // Точка физически ОПУСКАЕТСЯ
           arrow = '↓';
         }
       }
       
-      slopes.add({
-        'value': k,
-        'arrow': arrow,
-      });
+      slopes.add({'value': k, 'arrow': arrow});
     }
     
     return Card(
@@ -304,70 +278,76 @@ class _ResultScreenState extends State<ResultScreen> {
           children: [
             const Text(
               'ТАБЛИЦА РЕШЕНИЯ',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            
-            // Горизонтальная прокрутка
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 headingRowColor: WidgetStateProperty.all(Colors.green.shade100),
                 columns: [
                   const DataColumn(label: Text('№', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('F_вх${widget.useMeters ? ", м" : ""}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('F_вх${_showAbsoluteNow ? " (абс), м" : (widget.useMeters ? ", м" : "")}', style: const TextStyle(fontWeight: FontWeight.bold))),
                   const DataColumn(label: Text('Тип', style: TextStyle(fontWeight: FontWeight.bold))),
                   const DataColumn(label: Text('S_i', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('P_i${widget.useMeters ? ", м" : ""}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('P_i${_showAbsoluteNow ? " (абс), м" : (widget.useMeters ? ", м" : "")}', style: const TextStyle(fontWeight: FontWeight.bold))),
                   const DataColumn(label: Text('L_i', style: TextStyle(fontWeight: FontWeight.bold))),
                   const DataColumn(label: Text('k_i', style: TextStyle(fontWeight: FontWeight.bold))),
                   const DataColumn(label: Text('Стрелка', style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 rows: List.generate(F.length, (i) {
                   final bool isWatershed = i == vIndex;
-                  final slopeData = i < slopes.length ? slopes[i] : null;
+
+                  // Продольный уклон показываем так, чтобы строка
+                  // водораздела осталась пустой: до водораздела — уклон до
+                  // следующей точки (как раньше), после — уклон от
+                  // предыдущей. Каждый сегмент по-прежнему показан ровно
+                  // один раз, но на самом водоразделе цифры нет — там
+                  // уклон меняет направление, и одно число сбивало.
+                  int? segIdx;
+                  if (vIndex != null && vIndex >= 0) {
+                    if (i < vIndex) {
+                      segIdx = i;
+                    } else if (i > vIndex) {
+                      segIdx = i - 1;
+                    }
+                  } else {
+                    segIdx = i;
+                  }
+
+                  final slopeData =
+                      (segIdx != null && segIdx < slopes.length) ? slopes[segIdx] : null;
+                  final lengthText =
+                      (segIdx != null && segIdx < L.length) ? L[segIdx].toStringAsFixed(1) : '—';
                   
                   return DataRow(
                     color: WidgetStateProperty.all(
-                      isWatershed 
-                        ? Colors.blue.shade50 
-                        : (i % 2 == 0 ? Colors.grey.shade50 : Colors.white)
+                      isWatershed
+                          ? Colors.blue.shade50
+                          : (i % 2 == 0 ? Colors.grey.shade50 : Colors.white),
                     ),
                     cells: [
                       DataCell(Text('$i')),
                       DataCell(Text(_fmtElevation(F[i]))),
                       DataCell(Text(T[i])),
-                      DataCell(Text(S[i].toStringAsFixed(0))), // БЕЗ дробной части
+                      DataCell(Text(S[i].toStringAsFixed(0))),
                       DataCell(Text(_fmtElevation(P[i]))),
-                      DataCell(Text(i < L.length ? L[i].toStringAsFixed(1) : '—')),
-                      
-                      // k без стрелки
+                      DataCell(Text(lengthText)),
                       DataCell(
                         slopeData != null
-                          ? Text(
-                              slopeData['value'].toStringAsFixed(2),
-                              style: TextStyle(
-                                color: slopeData['value'] < 3.0 ? Colors.red : Colors.black,
-                                fontWeight: slopeData['value'] < 3.0 ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            )
-                          : const Text('—'),
+                            ? Text(
+                                slopeData['value'].toStringAsFixed(2),
+                                style: TextStyle(
+                                  color: slopeData['value'] < 3.0 ? Colors.red : Colors.black,
+                                  fontWeight: slopeData['value'] < 3.0 ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              )
+                            : const Text('—'),
                       ),
-                      
-                      // Стрелка отдельно
                       DataCell(
-                        slopeData != null
-                          ? Text(
-                              slopeData['arrow'],
-                              style: const TextStyle(fontSize: 18),
-                            )
-                          : Text(
-                              i == F.length - 1 ? '↓' : '—',
-                              style: const TextStyle(fontSize: 18),
-                            ),
+                        i < slopes.length
+                            ? Text(slopes[i]['arrow'], style: const TextStyle(fontSize: 18))
+                            : const Text('—', style: TextStyle(fontSize: 18)),
                       ),
                     ],
                   );

@@ -15,6 +15,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double desiredLayer = DrainageTypes.defaultDesiredLayer;
   bool useH2 = DrainageTypes.defaultUseH2;
   bool useH3 = true;
+  bool compareAllMethods = false;
   bool useMeters = false;
   
   // Допуски (копия для редактирования)
@@ -50,6 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       desiredLayer = settings['desiredLayer'];
       useH2 = settings['useH2'];
       useH3 = settings['useH3'];
+      compareAllMethods = settings['compareAllMethods'] ?? false;
       useMeters = settings['useMeters'] ?? false;
       tolerance = Map<String, List<int>>.from(settings['tolerance']);
       
@@ -137,7 +139,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('Использовать плавающий водораздел (H2)'),
               subtitle: const Text('Если не найдено решений с фиксированным V, попробовать виртуальный водораздел'),
               value: useH2,
-              onChanged: (value) => setState(() => useH2 = value),
+              onChanged: (value) => setState(() {
+                useH2 = value;
+                if (!useH2) compareAllMethods = false;
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Честное сравнение методов — требует useH2, иначе сравнивать не с чем
+          Card(
+            child: SwitchListTile(
+              title: const Text('Сравнивать методы честно'),
+              subtitle: Text(
+                useH2
+                    ? 'Прогнать оба применимых алгоритма (H0/H2 или H2/H3) и выбрать лучший по итоговому баллу'
+                    : 'Сначала включите плавающий водораздел (H2) выше — сравнивать не с чем',
+              ),
+              value: compareAllMethods,
+              onChanged: useH2
+                  ? (value) => setState(() => compareAllMethods = value)
+                  : null,
             ),
           ),
           
@@ -412,6 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       desiredLayer = DrainageTypes.defaultDesiredLayer;
       useH2 = DrainageTypes.defaultUseH2;
       useH3 = true;
+      compareAllMethods = false;
       useMeters = false;
       
       // Deep copy допусков
@@ -457,6 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       desiredLayer: desiredLayer,
       useH2: useH2,
       useH3: useH3,
+      compareAllMethods: compareAllMethods,
       useMeters: useMeters,
       tolerance: tolerance,
     );
@@ -469,6 +494,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'desiredLayer': desiredLayer,
       'useH2': useH2,
       'useH3': useH3,
+      'compareAllMethods': compareAllMethods,
       'useMeters': useMeters,
       'tolerance': tolerance,
     });

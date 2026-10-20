@@ -4,6 +4,7 @@
 import '../models/types.dart';
 import '../models/settings.dart';
 import 'solver_base.dart';
+import '../optimization/optimizer.dart';
 
 /// Решатель H3 - монотонный профиль без водораздела.
 /// Использует полный перебор BnB (не жадный алгоритм).
@@ -54,7 +55,7 @@ class H3Solver {
       void backtrack(int idx) {
         if (idx == N) {
           // Оцениваем решение
-          final double score = _scoreH3(buffer, F, tMod, L, settings.desiredLayer);
+          final double score = DrainageOptimizer.evaluate(P: buffer, F: F, T: tMod, L: L, desiredLayer: settings.desiredLayer)[0];
           if (score < bestScore) {
             bestScore = score;
             best = Solution(
@@ -96,21 +97,4 @@ class H3Solver {
   }
 
   /// Скор: интегральное среднее отклонение слоёв от desiredLayer.
-  static double _scoreH3(
-    List<double> P,
-    List<double> F,
-    List<String> T,
-    List<double> L,
-    double desiredLayer,
-  ) {
-    double integral = 0;
-    double totalLen = 0;
-    for (int i = 0; i < L.length; i++) {
-      final double s1 = (T[i] == 'PR') ? desiredLayer : (F[i] - P[i]);
-      final double s2 = (T[i + 1] == 'PR') ? desiredLayer : (F[i + 1] - P[i + 1]);
-      integral += ((s1 - desiredLayer).abs() + (s2 - desiredLayer).abs()) / 2 * L[i];
-      totalLen += L[i];
-    }
-    return totalLen > 0 ? integral / totalLen : double.infinity;
-  }
 }

@@ -111,7 +111,9 @@ bool isSolutionValid({
   // Проверка всех слоёв
   for (int i = 0; i < N; i++) {
     final double S = F[i] - P[i];
-    final tolerance = DrainageTypes.tolerance[T[i]]!;
+    // Из настроек, не из константы: проверка должна совпадать с тем, по
+    // каким допускам решение вообще собиралось.
+    final tolerance = settings.tolerance[T[i]] ?? DrainageTypes.tolerance[T[i]]!;
     final int minS = tolerance[0];
     final int maxS = tolerance[1];
     
@@ -172,7 +174,7 @@ void generateSegmentBnb({
 
     for (final double pCurrent in pSet[idx]) {
       final double sCurrent = F[idx] - pCurrent;
-      final tol = DrainageTypes.tolerance[T[idx]]!;
+      final tol = settings.tolerance[T[idx]] ?? DrainageTypes.tolerance[T[idx]]!;
 
       // Отсечение 1: слой
       if (sCurrent < tol[0] || sCurrent > tol[1]) continue;

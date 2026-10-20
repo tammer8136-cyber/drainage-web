@@ -5,6 +5,7 @@ import '../models/types.dart';
 import '../models/result.dart';
 import '../models/settings.dart';
 import 'solver_base.dart';
+import '../optimization/optimizer.dart';
 
 /// Решатель H2 - поиск оптимального водораздела через виртуальные точки
 class H2Solver {
@@ -63,7 +64,11 @@ class H2Solver {
         final int vIdx = segIdx + 1;
 
         final List<List<double>> pSetExt = generatePSet(fExt, tExt, settings);
-        final tolV = DrainageTypes.tolerance['V']!;
+        // Допуск водораздела берём ИЗ НАСТРОЕК, а не из встроенной
+        // константы: раньше здесь стоял DrainageTypes.tolerance['V'], и
+        // слой на водоразделе упирался в дефолт независимо от того, что
+        // выставлено в настройках проекта.
+        final tolV = settings.tolerance['V'] ?? DrainageTypes.tolerance['V']!;
 
         for (final double pV in pSetExt[vIdx]) {
           final double sV = fExt[vIdx] - pV;
@@ -96,8 +101,8 @@ class H2Solver {
                         settings: settings,
                       )) return;
 
-                      // Быстрый score: отклонение от desiredLayer (без полного optimize)
-                      final double score = _quickScore(full, fExt, tExt, lExt, settings.desiredLayer);
+                      // Настоящий балл — тот же, что у оптимизатора
+                      final double score = DrainageOptimizer.evaluate(P: full, F: fExt, T: tExt, L: lExt, desiredLayer: settings.desiredLayer)[0];
                       if (score < bestScore) {
                         bestScore = score;
                         bestSolution = Solution(
@@ -121,7 +126,7 @@ class H2Solver {
                     F: fExt, T: tExt, L: lExt,
                     settings: settings,
                   )) return;
-                  final double score = _quickScore(full, fExt, tExt, lExt, settings.desiredLayer);
+                  final double score = DrainageOptimizer.evaluate(P: full, F: fExt, T: tExt, L: lExt, desiredLayer: settings.desiredLayer)[0];
                   if (score < bestScore) {
                     bestScore = score;
                     bestSolution = Solution(
@@ -148,7 +153,7 @@ class H2Solver {
                   F: fExt, T: tExt, L: lExt,
                   settings: settings,
                 )) return;
-                final double score = _quickScore(full, fExt, tExt, lExt, settings.desiredLayer);
+                final double score = DrainageOptimizer.evaluate(P: full, F: fExt, T: tExt, L: lExt, desiredLayer: settings.desiredLayer)[0];
                 if (score < bestScore) {
                   bestScore = score;
                   bestSolution = Solution(
@@ -173,23 +178,4 @@ class H2Solver {
     return bestSolution != null ? [bestSolution!] : [];
   }
 
-  /// Быстрый скор: среднеарифметическое отклонение слоёв от desiredLayer.
-  /// Не требует полного интегрального расчёта — используется только для сравнения.
-  static double _quickScore(
-    List<double> P,
-    List<double> F,
-    List<String> T,
-    List<double> L,
-    double desiredLayer,
-  ) {
-    double sum = 0;
-    int count = 0;
-    for (int i = 0; i < P.length; i++) {
-      if (T[i] != 'PR') {
-        sum += (F[i] - P[i] - desiredLayer).abs();
-        count++;
-      }
-    }
-    return count > 0 ? sum / count : 0;
-  }
 }

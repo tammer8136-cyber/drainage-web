@@ -73,58 +73,100 @@ class DrainageSolver {
     
     // Поиск решений
     List<Solution> solutions = [];
-    
-    // H0: Фиксированный водораздел
-    if (hasFixedV) {
-      solutions = H0Solver.solveH0(
-        F: F,
-        T: T,
-        L: L,
-        pSet: pSet,
-        settings: activeSettings,
-        debug: debug,
-      );
-      
-      if (debug) {
-        print('H0 found ${solutions.length} solutions');
+
+    if (activeSettings.compareAllMethods && refineWatershed) {
+      // Честное сравнение: собираем кандидатов ОБОИХ применимых алгоритмов
+      // в один список и передаём разом в оптимизатор — он и так уже выбирает
+      // лучшее по score из любого переданного списка. H3 участвует в
+      // сравнении, только если в профиле нет явной V/VK (иначе H3
+      // проигнорировал бы смысл этой метки, проведя прямую линию через
+      // низшую точку вместо честного водораздела).
+      if (hasFixedV) {
+        // H0 (водораздел зафиксирован на V/VK) против H2 (свободный)
+        final h0Solutions = H0Solver.solveH0(
+          F: F, T: T, L: L, pSet: pSet, settings: activeSettings, debug: debug,
+        );
+        final h2Solutions = H2Solver.solveH2(
+          F: F, T: T, L: L, pSet: pSet, settings: activeSettings, debug: debug,
+        );
+        solutions = [...h0Solutions, ...h2Solutions];
+
+        if (debug) {
+          print('Сравнение H0 (${h0Solutions.length}) vs H2 (${h2Solutions.length})');
+        }
+      } else {
+        // H2 против H3 (H3 — только если включён и применим)
+        final h2Solutions = H2Solver.solveH2(
+          F: F, T: T, L: L, pSet: pSet, settings: activeSettings, debug: debug,
+        );
+        List<Solution> h3Solutions = [];
+        if (activeSettings.useH3 &&
+            H3Solver.canApplyH3(F: F, T: T, L: L, settings: activeSettings)) {
+          h3Solutions = H3Solver.solveH3(
+            F: F, T: T, L: L, pSet: pSet, settings: activeSettings, debug: debug,
+          );
+        }
+        solutions = [...h2Solutions, ...h3Solutions];
+
+        if (debug) {
+          print('Сравнение H2 (${h2Solutions.length}) vs H3 (${h3Solutions.length})');
+        }
       }
-    }
-    
-    // H2: Плавающий водораздел (если H0 не нашёл решений)
-    if ((!hasFixedV || solutions.isEmpty) && refineWatershed) {
-      solutions = H2Solver.solveH2(
-        F: F,
-        T: T,
-        L: L,
-        pSet: pSet,
-        settings: activeSettings,
-        debug: debug,
-      );
-      
-      if (debug) {
-        print('H2 found ${solutions.length} solutions');
+    } else {
+      // Обычная цепочка с ранним выходом (без сравнения)
+
+      // H0: Фиксированный водораздел
+      if (hasFixedV) {
+        solutions = H0Solver.solveH0(
+          F: F,
+          T: T,
+          L: L,
+          pSet: pSet,
+          settings: activeSettings,
+          debug: debug,
+        );
+
+        if (debug) {
+          print('H0 found ${solutions.length} solutions');
+        }
       }
-    }
-    
-    // H3: Прямой уклон (если H2 не нашёл решений и H3 применим)
-    if (solutions.isEmpty && 
-        activeSettings.useH3 && 
-        H3Solver.canApplyH3(F: F, T: T, L: L, settings: activeSettings)) {
-      if (debug) {
-        print('Trying H3 (direct slope)...');
+
+      // H2: Плавающий водораздел (если H0 не нашёл решений)
+      if ((!hasFixedV || solutions.isEmpty) && refineWatershed) {
+        solutions = H2Solver.solveH2(
+          F: F,
+          T: T,
+          L: L,
+          pSet: pSet,
+          settings: activeSettings,
+          debug: debug,
+        );
+
+        if (debug) {
+          print('H2 found ${solutions.length} solutions');
+        }
       }
-      
-      solutions = H3Solver.solveH3(
-        F: F,
-        T: T,
-        L: L,
-        pSet: pSet,
-        settings: activeSettings,
-        debug: debug,
-      );
-      
-      if (debug) {
-        print('H3 found ${solutions.length} solutions');
+
+      // H3: Прямой уклон (если H2 не нашёл решений и H3 применим)
+      if (solutions.isEmpty &&
+          activeSettings.useH3 &&
+          H3Solver.canApplyH3(F: F, T: T, L: L, settings: activeSettings)) {
+        if (debug) {
+          print('Trying H3 (direct slope)...');
+        }
+
+        solutions = H3Solver.solveH3(
+          F: F,
+          T: T,
+          L: L,
+          pSet: pSet,
+          settings: activeSettings,
+          debug: debug,
+        );
+
+        if (debug) {
+          print('H3 found ${solutions.length} solutions');
+        }
       }
     }
     

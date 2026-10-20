@@ -30,6 +30,16 @@ class RepositoryFactory {
     return _instance!;
   }
   
+  /// Уже инициализированный репозиторий — синхронно. main.dart вызывает
+  /// getInstance() до runApp, поэтому к моменту построения экранов он есть.
+  static DataRepository get instance {
+    final i = _instance;
+    if (i == null) {
+      throw StateError('RepositoryFactory не инициализирован — вызовите getInstance() в main');
+    }
+    return i;
+  }
+
   /// Сбросить instance (для тестирования)
   static void reset() {
     _instance = null;

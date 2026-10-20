@@ -20,7 +20,7 @@ class ProjectDetailScreen extends StatefulWidget {
 }
 
 class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
-  DataRepository? _repo;
+  DataRepository get _db => RepositoryFactory.instance;
   Map<String, dynamic>? _project;
   List<Map<String, dynamic>> _sections = [];
   Map<String, dynamic>? _stats;
@@ -29,22 +29,15 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _initRepository();
-  }
-
-  Future<void> _initRepository() async {
-    _repo = await RepositoryFactory.getInstance();
-    await _loadProject();
+    _loadProject();
   }
 
   Future<void> _loadProject() async {
-    if (_repo == null) return;
-    
     setState(() => _loading = true);
     
-    final project = await _repo!.getProject(widget.projectId);
-    final sections = await _repo!.getProjectSections(widget.projectId);
-    final stats = await _repo!.getProjectStats(widget.projectId);
+    final project = await _db.getProject(widget.projectId);
+    final sections = await _db.getProjectSections(widget.projectId);
+    final stats = await _db.getProjectStats(widget.projectId);
     
     setState(() {
       _project = project;
@@ -97,11 +90,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       ),
     );
     
-    if (newSettings != null && _repo != null) {
-      // Сохраняем новые настройки
-      await _repo!.updateProject(
+    if (newSettings != null) {
+      // ВАЖНО: updateProject заменяет settings ЦЕЛИКОМ, а экран настроек
+      // проекта не знает про режим отметок (elevationMode/giMode/gi —
+      // он задаётся при создании проекта). Без мёрджа простое сохранение
+      // настроек молча сбрасывало бы проект обратно в режим «по рейке» и
+      // теряло зафиксированный горизонт.
+      final merged = Map<String, dynamic>.from(currentSettings ?? {});
+      merged.addAll(newSettings);
+
+      await _db.updateProject(
         id: widget.projectId,
-        settings: jsonEncode(newSettings),
+        settings: jsonEncode(merged),
       );
       
       // Обновляем проект
@@ -135,8 +135,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       ),
     );
     
-    if (confirmed == true && _repo != null) {
-      await _repo!.deleteSection(sectionId);
+    if (confirmed == true) {
+      await _db.deleteSection(sectionId);
       await _loadProject();
     }
   }
@@ -145,11 +145,34 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     try {
       final resultData = jsonDecode(section['result_data']);
       final resultJson = jsonEncode(resultData);
-      
+
+      // Режим отметок берём из снимка настроек ЭТОГО участка (то, чем его
+      // реально считали), а не из текущих настроек проекта — иначе при
+      // повторном открытии абсолютный проект показывал бы отсчёты по рейке.
+      Map<String, dynamic>? snap;
+      if (section['settings_snapshot'] != null) {
+        try {
+          snap = jsonDecode(section['settings_snapshot']) as Map<String, dynamic>;
+        } catch (_) {
+          snap = null;
+        }
+      }
+      Map<String, dynamic>? projectSettings;
+      if (_project!['settings'] != null) {
+        projectSettings = jsonDecode(_project!['settings']);
+      }
+      final src = snap ?? projectSettings ?? const <String, dynamic>{};
+
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ResultScreen(resultJson: resultJson),
+          builder: (context) => ResultScreen(
+            resultJson: resultJson,
+            useMeters: src['useMeters'] as bool? ?? false,
+            elevationMode: src['elevationMode'] as String? ?? 'rod',
+            giMode: src['giMode'] as String? ?? 'auto',
+            gi: (src['gi'] as num?)?.toDouble(),
+          ),
         ),
       );
     } catch (e) {
@@ -317,8 +340,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       // Используем средний слой из результата (интегральный метод)
                       avgLayer = (resultData['average_layer'] as num?)?.toDouble() ?? 0.0;
                     } catch (e) {
-                      // Раньше здесь был только print() — теперь карточка
-                      // всё равно показывается, статус просто останется
+                      // Раньше здесь был только print() — карточка всё
+                      // равно показывается, статус просто остаётся
                       // дефолтным, без незаметной подмены данных.
                       status = 'ошибка чтения';
                     }

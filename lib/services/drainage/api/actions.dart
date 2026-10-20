@@ -25,6 +25,7 @@ Future<String> calculateDrainageAction(
   double? kMin,
   int? delta,
   bool? useH3,
+  bool? compareAllMethods,
   Map<String, List<int>>? tolerance,
 }) async {
   try {
@@ -87,6 +88,7 @@ Future<String> calculateDrainageAction(
       desiredLayer: desiredLayer,
       tolerance: tolerance,
       useH3: useH3,
+      compareAllMethods: compareAllMethods,
     );
     
     // Вызываем основной алгоритм
@@ -110,4 +112,40 @@ Future<String> calculateDrainageAction(
       'computation_time': 0.0,
     });
   }
+}
+
+/// Точка входа для compute() — перенос тяжёлого расчёта в отдельный isolate.
+///
+/// Раньше `_calculate()` вызывал calculateDrainageAction() напрямую: хотя
+/// функция помечена async, внутри неё нет реального await на асинхронную
+/// операцию — весь branch-and-bound перебор выполняется синхронно в
+/// основном UI-потоке. При 10+ точках расчёт занимает секунды, всё это
+/// время интерфейс не может отрисовываться и реагировать — Android
+/// показывает «не отвечает», и результат (который к этому моменту уже
+/// посчитан и сохранён) виден только после перезахода.
+///
+/// compute() запускает переданную функцию в отдельном isolate — сюда можно
+/// передать только простые сериализуемые данные (что и так уже было нужно
+/// для JSON-based интерфейса calculateDrainageAction), никаких доработок
+/// сигнатуры не потребовалось.
+Future<String> calculateDrainageIsolate(Map<String, dynamic> params) async {
+  return await calculateDrainageAction(
+    params['pointsJson'] as String,
+    params['useH2'] as bool,
+    params['desiredLayer'] as double,
+    kMin: params['kMin'] as double?,
+    delta: params['delta'] as int?,
+    useH3: params['useH3'] as bool?,
+    compareAllMethods: params['compareAllMethods'] as bool?,
+    tolerance: params['tolerance'] != null
+        ? Map<String, List<int>>.from(
+            (params['tolerance'] as Map).map(
+              (key, value) => MapEntry(
+                key as String,
+                List<int>.from(value as List),
+              ),
+            ),
+          )
+        : null,
+  );
 }

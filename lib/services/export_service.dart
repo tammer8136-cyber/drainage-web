@@ -127,8 +127,8 @@ class ExportService {
                         _buildCell(T[i], font),
                         _buildCell(S[i].toStringAsFixed(0), font),
                         _buildCell(P[i].toStringAsFixed(1), font),
-                        _buildCell(i < L.length ? L[i].toStringAsFixed(1) : '—', font),
-                        _buildCell(i < k.length ? k[i].toStringAsFixed(2) : '—', font),
+                        _buildCell(_segLen(i, vIndex, L), font),
+                        _buildCell(_segSlope(i, vIndex, k), font),
                         _buildCell(i < arrows.length ? arrows[i] : '-', font),
                       ],
                     ),
@@ -149,6 +149,28 @@ class ExportService {
     } else {
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     }
+  }
+
+
+  /// Индекс сегмента для строки i: до водораздела — вперёд, после — назад,
+  /// на самом водоразделе — пусто (стрелка ↑↓ остаётся по индексу строки).
+  static int? _segIndex(int i, int? vIndex) {
+    if (vIndex != null && vIndex >= 0) {
+      if (i < vIndex) return i;
+      if (i > vIndex) return i - 1;
+      return null;
+    }
+    return i;
+  }
+
+  static String _segLen(int i, int? vIndex, List<double> L) {
+    final idx = _segIndex(i, vIndex);
+    return (idx != null && idx < L.length) ? L[idx].toStringAsFixed(1) : '—';
+  }
+
+  static String _segSlope(int i, int? vIndex, List<double> k) {
+    final idx = _segIndex(i, vIndex);
+    return (idx != null && idx < k.length) ? k[idx].toStringAsFixed(2) : '—';
   }
 
   static pw.Widget _buildCell(String text, pw.Font font) {
